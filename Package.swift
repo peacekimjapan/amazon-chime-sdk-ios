@@ -13,12 +13,12 @@ let package = Package(
         .binaryTarget(
             name: "AmazonChimeSDK",
             url: "https://amazonchime.s3.amazonaws.com/AmazonChimeSDK.xcframework.zip",
-            checksum: "556a50fb1b36d32dc768d6b0ed1f9f61"
+            checksum: "527f2a2e7d30fd3c56b2cbe717752fd238ada66e71a66c4797b3b7fbc41f8737"
         ),
         .binaryTarget(
             name: "AmazonChimeSDKMedia",
             url: "https://amazonchime.s3.amazonaws.com/AmazonChimeSDKMedia.xcframework.zip",
-            checksum: "f52fbfc77b64c14a6f59fe8f242f9dbb"
+            checksum: "4672196db98b1e0efba822f7185273cb706458e379ccbdfa01637626a53599fb"
         )
     ]
 )
