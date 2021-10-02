@@ -22,7 +22,7 @@ let package = Package(
         ),
         .binaryTarget(
             name: "AmazonChimeSDKMedia",
-            path: "https://amazon-chime-sdk-ios.s3.amazonaws.com/media/0.12.1/AmazonChimeSDKMedia-0.12.1.tar.gz",
+            url: "https://amazon-chime-sdk-ios.s3.amazonaws.com/media/0.12.1/AmazonChimeSDKMedia-0.12.1.tar.gz",
             checksum: "7b6bf631c95997010e54caa7068657b2"
         )
     ]
