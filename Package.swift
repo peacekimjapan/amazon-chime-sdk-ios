@@ -7,8 +7,8 @@ let package = Package(
         .library(name: "AmazonChimeSDK", targets: ["AmazonChimeSDK"])
     ],
     dependencies: [    
-        .package(url: "https://github.com/birdrides/mockingbird.git", from: "0.16.0")
-    ]
+        .package(url: "https://github.com/birdrides/mockingbird.git", from: "0.15.0")
+    ],
     targets: [
         .target(name: "AmazonChimeSDK", path: "./AmazonChimeSDK/AmazonChimeSDK"),
         .testTarget(
