@@ -10,20 +10,15 @@ let package = Package(
         .package(url: "https://github.com/birdrides/mockingbird.git", from: "0.15.0")
     ],
     targets: [
-        // .target(name: "AmazonChimeSDK", path: "./AmazonChimeSDK/AmazonChimeSDK"),
-        .testTarget(
-            name: "AmazonChimeSDKTests",
-            dependencies: ["AmazonChimeSDK"]
-        ),
         .binaryTarget(
             name: "AmazonChimeSDK",
-            url: "https://amazon-chime-sdk-ios.s3.amazonaws.com/sdk/0.16.5/AmazonChimeSDK-0.16.5.tar.gz",
-            checksum: "1527aff1111416dd5dc5d17659668618"
+            url: "https://amazonchime.s3.amazonaws.com/AmazonChimeSDK.xcframework.zip",
+            checksum: "556a50fb1b36d32dc768d6b0ed1f9f61"
         ),
         .binaryTarget(
             name: "AmazonChimeSDKMedia",
-            url: "https://amazon-chime-sdk-ios.s3.amazonaws.com/media/0.12.1/AmazonChimeSDKMedia-0.12.1.tar.gz",
-            checksum: "7b6bf631c95997010e54caa7068657b2"
+            url: "https://amazonchime.s3.amazonaws.com/AmazonChimeSDKMedia.xcframework.zip",
+            checksum: "f52fbfc77b64c14a6f59fe8f242f9dbb"
         )
     ]
 )
