@@ -17,7 +17,7 @@ class DefaultAudioClientController: NSObject {
     private let audioClientObserver: AudioClientObserver
     private let audioSession: AudioSession
     private let audioPortOffset = 200
-    private let defaultMicAndSpeaker = false
+    private let muteMicAndSpeaker = false
     private let defaultPort = 0
     private let defaultPresenter = true
     private let eventAnalyticsController: EventAnalyticsController
@@ -67,13 +67,17 @@ extension DefaultAudioClientController: AudioClientController {
                       meetingId: String,
                       attendeeId: String,
                       joinToken: String,
-                      callKitEnabled: Bool) throws {
+                      callKitEnabled: Bool,
+                      audioMode: AudioMode) throws {
         audioLock.lock()
         defer {
             audioLock.unlock()
         }
-        guard audioSession.recordPermission == .granted else {
-            throw PermissionError.audioPermissionError
+        
+        if audioMode != .nodevice {
+            guard audioSession.recordPermission == .granted else {
+                throw PermissionError.audioPermissionError
+            }
         }
 
         if Self.state == .started {
@@ -96,18 +100,28 @@ extension DefaultAudioClientController: AudioClientController {
             observer.audioSessionDidStartConnecting(reconnecting: false)
         }
         eventAnalyticsController.publishEvent(name: .meetingStartRequested)
+        meetingStatsCollector.updateMeetingStartConnectingTimeMs()
         let appInfo = DeviceUtils.getAppInfo()
+        var audioModeInternal: AudioModeInternal = .Stereo48K
+        if (audioMode == .mono48K) {
+            audioModeInternal = .Mono48K
+        } else if (audioMode == .mono16K) {
+            audioModeInternal = .Mono16K
+        } else if (audioMode == .nodevice) {
+            audioModeInternal = .NoDevice
+        }
         let status = audioClient.startSession(host,
                                               basePort: port,
                                               callId: meetingId,
                                               profileId: attendeeId,
-                                              microphoneMute: defaultMicAndSpeaker,
-                                              speakerMute: defaultMicAndSpeaker,
+                                              microphoneMute: muteMicAndSpeaker,
+                                              speakerMute: muteMicAndSpeaker,
                                               isPresenter: defaultPresenter,
                                               sessionToken: joinToken,
                                               audioWsUrl: audioFallbackUrl,
                                               callKitEnabled: callKitEnabled,
-                                              appInfo: appInfo)
+                                              appInfo: appInfo,
+                                              audioMode: audioModeInternal)
 
         if status == AUDIO_CLIENT_OK {
             Self.state = .started
@@ -155,6 +169,26 @@ extension DefaultAudioClientController: AudioClientController {
         } else {
             return false
         }
+    }
+
+    func promoteToPrimaryMeeting(credentials: MeetingSessionCredentials, observer: PrimaryMeetingPromotionObserver) {
+        guard Self.state == .started else {
+            logger.error(msg: "Cannot join primary meeting because state=\(Self.state)")
+            observer.didPromoteToPrimaryMeeting(status: MeetingSessionStatus(statusCode: MeetingSessionStatusCode.audioServiceUnavailable))
+            return
+        }
+        audioClientObserver.setPrimaryMeetingPromotionObserver(observer: observer)
+        audioClient.joinPrimaryMeeting(credentials.attendeeId,
+                                        externalUserId: credentials.externalUserId,
+                                        joinToken: credentials.joinToken)
+    }
+
+    func demoteFromPrimaryMeeting() {
+        guard Self.state == .started else {
+            logger.error(msg: "Cannot leave primary meeting because state=\(Self.state)")
+            return
+        }
+        audioClient.leavePrimaryMeeting()
     }
 
     private func notifyStop() {

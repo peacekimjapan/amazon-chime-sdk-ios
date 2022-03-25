@@ -20,6 +20,7 @@ class MeetingViewController: UIViewController {
     @IBOutlet var controlView: UIView!
     @IBOutlet var cameraButton: UIButton!
     @IBOutlet var deviceButton: UIButton!
+    @IBOutlet var broadcastButton: UIButton!
     @IBOutlet var broadcastPickerContainerView: UIView!
     @IBOutlet var additionalOptionsButton: UIButton!
     @IBOutlet var endButton: UIButton!
@@ -58,6 +59,9 @@ class MeetingViewController: UIViewController {
     @IBOutlet var inputText: UITextField!
     @IBOutlet var sendMessageButton: UIButton!
     @IBOutlet var inputBoxBottomConstrain: NSLayoutConstraint!
+
+    // Captions
+    @IBOutlet var captionsTableView: UITableView!
 
     // Model
     var meetingModel: MeetingModel?
@@ -153,7 +157,6 @@ class MeetingViewController: UIViewController {
             if let tileId = tileId,
                let screenRenderView = self?.screenRenderView,
                let meetingModel = meetingModel {
-
                 meetingModel.bind(videoRenderView: screenRenderView, tileId: tileId)
             }
         }
@@ -164,6 +167,13 @@ class MeetingViewController: UIViewController {
 
         meetingModel.chatModel.refreshChatTableHandler = { [weak self] in
             self?.chatMessageTable.reloadData()
+        }
+
+        meetingModel.captionsModel.refreshCaptionsTableHandler = { [weak self] in
+            self?.captionsTableView.reloadData()
+            // auto scroll to bottom when new captions come in
+            let indexPath = IndexPath(row: meetingModel.captionsModel.captions.count - 1, section: 0)
+            self?.captionsTableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
         }
     }
 
@@ -194,6 +204,11 @@ class MeetingViewController: UIViewController {
         prevVideoPageButton.isEnabled = false
         nextVideoPageButton.isEnabled = false
 
+        if let model = meetingModel, !model.primaryExternalMeetingId.isEmpty {
+            meetingModel?.setMute(isMuted: true)
+            self.enableOrDisableButtonsForReplicatedMeeting(enabled: false)
+        }
+
         // Segmented Controler
         segmentedControl.selectedSegmentIndex = SegmentedControlIndex.attendees.rawValue
 
@@ -217,6 +232,12 @@ class MeetingViewController: UIViewController {
         chatMessageTable.separatorStyle = .none
         sendMessageButton.imageView?.contentMode = UIView.ContentMode.scaleAspectFit
         setupHideKeyboardOnTap()
+
+        // Captions table
+        captionsTableView.delegate = meetingModel?.captionsModel
+        captionsTableView.dataSource = meetingModel?.captionsModel
+        captionsTableView.separatorStyle = .none
+
         #if !targetEnvironment(simulator)
             if #available(iOS 12.0, *) {
                 setupBroadcastPickerView()
@@ -294,11 +315,12 @@ class MeetingViewController: UIViewController {
         segmentedControl.isHidden = false
         containerView.isHidden = false
         chatView.isHidden = true
-        muteButton.isEnabled = true
-        additionalOptionsButton.isEnabled = true
-        deviceButton.isEnabled = true
-        cameraButton.isEnabled = true
-        additionalOptionsButton.isEnabled = true
+        captionsTableView.isHidden = true
+        
+
+        guard let meetingModel = meetingModel else {
+            return
+        }
 
         switch mode {
         case .roster:
@@ -313,7 +335,7 @@ class MeetingViewController: UIViewController {
             videoPaginationControlView.isHidden = false
         case .screenShare:
             screenView.isHidden = false
-            if meetingModel?.screenShareModel.isAvailable ?? false {
+            if meetingModel.screenShareModel.isAvailable {
                 screenRenderView.isHidden = false
             } else {
                 noScreenViewLabel.isHidden = false
@@ -330,6 +352,9 @@ class MeetingViewController: UIViewController {
             deviceButton.isEnabled = false
             cameraButton.isEnabled = false
             additionalOptionsButton.isEnabled = false
+        case .captions:
+            captionsTableView.reloadData()
+            captionsTableView.isHidden = false
         }
     }
 
@@ -345,6 +370,8 @@ class MeetingViewController: UIViewController {
             meetingModel?.activeMode = .video
         case SegmentedControlIndex.screen.rawValue:
             meetingModel?.activeMode = .screenShare
+        case SegmentedControlIndex.captions.rawValue:
+            meetingModel?.activeMode = .captions
         case SegmentedControlIndex.metrics.rawValue:
             meetingModel?.activeMode = .metrics
         default:
@@ -362,61 +389,85 @@ class MeetingViewController: UIViewController {
         }
         let optionMenu = UIAlertController(title: nil, message: "Additional Options", preferredStyle: .actionSheet)
 
-        let isVoiceFocusEnabled = meetingModel.isVoiceFocusEnabled()
-        let nextVoiceFocusStatus = nextOnOrOff(current: isVoiceFocusEnabled)
-        let voiceFocusAction = UIAlertAction(title: "Turn \(nextVoiceFocusStatus) Voice Focus",
-                                             style: .default,
-                                             handler: { _ in
-                                                meetingModel.setVoiceFocusEnabled(enabled: !isVoiceFocusEnabled)
-                                             })
-        optionMenu.addAction(voiceFocusAction)
-
-        // We can only access torch and apply filter on external video source
-        if meetingModel.videoModel.isUsingExternalVideoSource {
-            let isTorchOn = meetingModel.videoModel.customSource.torchEnabled
-            let nextTorchStatus = nextOnOrOff(current: isTorchOn)
-            let torchAction = UIAlertAction(title: "Turn \(nextTorchStatus) flashlight",
-                                            style: .default,
-                                            handler: { _ in
-                                                self.toggleTorch(nextStatus: nextTorchStatus)
-                                            })
-            optionMenu.addAction(torchAction)
-
-            let isGpuFilterOn = meetingModel.videoModel.isUsingCoreImageVideoProcessor
-            let nextGpuFilterStatus = nextOnOrOff(current: isGpuFilterOn)
-            let gpuFilterAction = UIAlertAction(title: "Turn \(nextGpuFilterStatus) Core Image video filter",
-                                                style: .default,
-                                                handler: { _ in
-                                                    self.toggleCoreImageFilter(nextStatus: nextGpuFilterStatus)
-                                                })
-            optionMenu.addAction(gpuFilterAction)
-
-            let isCpuFilterOn = meetingModel.videoModel.isUsingMetalVideoProcessor
-            let nextCpuFilterStatus = nextOnOrOff(current: isCpuFilterOn)
-            let cpuFilterAction = UIAlertAction(title: "Turn \(nextCpuFilterStatus) Metal video filter",
-                                                style: .default,
-                                                handler: { _ in
-                                                    self.toggleMetalFilter(nextStatus: nextCpuFilterStatus)
-                                                })
-            optionMenu.addAction(cpuFilterAction)
+        if !meetingModel.primaryExternalMeetingId.isEmpty {
+            let primaryMeetingPromotionTitle = meetingModel.isPromotedToPrimaryMeeting
+                ? "Demote from Primary meeting" : "Promote to Primary meeting"
+            let primaryMeetingPromotionAction = UIAlertAction(title: primaryMeetingPromotionTitle,
+                                                              style: .default,
+                                                              handler: { _ in self.togglePrimaryMeetingPromotion() })
+            optionMenu.addAction(primaryMeetingPromotionAction)
         }
 
-        let nextSourceType = meetingModel.videoModel.isUsingExternalVideoSource ? "internal" : "external"
-        let customSourceAction = UIAlertAction(title: "Use \(nextSourceType) camera source",
-                                               style: .default,
-                                               handler: { _ in
-                                                    self.toggleCustomCameraSource(nextSourceType: nextSourceType)
-                                               })
-        optionMenu.addAction(customSourceAction)
+        if meetingModel.primaryExternalMeetingId.isEmpty || meetingModel.isPromotedToPrimaryMeeting {
+            let isVoiceFocusEnabled = meetingModel.isVoiceFocusEnabled()
+            let nextVoiceFocusStatus = nextOnOrOff(current: isVoiceFocusEnabled)
+            let voiceFocusAction = UIAlertAction(title: "Turn \(nextVoiceFocusStatus) Voice Focus",
+                                                 style: .default,
+                                                 handler: { _ in
+                                                    meetingModel.setVoiceFocusEnabled(enabled: !isVoiceFocusEnabled)
+                                                 })
+            optionMenu.addAction(voiceFocusAction)
 
-        #if !targetEnvironment(simulator)
-            let inAppContentShareTitle = meetingModel.screenShareModel.inAppCaptureModel.isSharing ?
-                "Stop sharing content" : "Share in app content"
-            let inAppContentShareAction = UIAlertAction(title: inAppContentShareTitle,
-                                                        style: .default,
-                                                        handler: { _ in self.toggleInAppContentShare() })
-            optionMenu.addAction(inAppContentShareAction)
-        #endif
+            // We can only access torch and apply filter on external video source
+            if meetingModel.videoModel.isUsingExternalVideoSource {
+                let isTorchOn = meetingModel.videoModel.customSource.torchEnabled
+                let nextTorchStatus = nextOnOrOff(current: isTorchOn)
+                let torchAction = UIAlertAction(title: "Turn \(nextTorchStatus) flashlight",
+                                                style: .default,
+                                                handler: { _ in
+                                                    self.toggleTorch(nextStatus: nextTorchStatus)
+                                                })
+                optionMenu.addAction(torchAction)
+
+                let isGpuFilterOn = meetingModel.videoModel.isUsingCoreImageVideoProcessor
+                let nextGpuFilterStatus = nextOnOrOff(current: isGpuFilterOn)
+                let gpuFilterAction = UIAlertAction(title: "Turn \(nextGpuFilterStatus) Core Image video filter",
+                                                    style: .default,
+                                                    handler: { _ in
+                                                        self.toggleCoreImageFilter(nextStatus: nextGpuFilterStatus)
+                                                    })
+                optionMenu.addAction(gpuFilterAction)
+
+                let isCpuFilterOn = meetingModel.videoModel.isUsingMetalVideoProcessor
+                let nextCpuFilterStatus = nextOnOrOff(current: isCpuFilterOn)
+                let cpuFilterAction = UIAlertAction(title: "Turn \(nextCpuFilterStatus) Metal video filter",
+                                                    style: .default,
+                                                    handler: { _ in
+                                                        self.toggleMetalFilter(nextStatus: nextCpuFilterStatus)
+                                                    })
+                optionMenu.addAction(cpuFilterAction)
+            }
+
+            let nextSourceType = meetingModel.videoModel.isUsingExternalVideoSource ? "internal" : "external"
+            let customSourceAction = UIAlertAction(title: "Use \(nextSourceType) camera source",
+                                                   style: .default,
+                                                   handler: { _ in
+                                                        self.toggleCustomCameraSource(nextSourceType: nextSourceType)
+                                                   })
+            optionMenu.addAction(customSourceAction)
+
+            #if !targetEnvironment(simulator)
+                let inAppContentShareTitle = meetingModel.screenShareModel.inAppCaptureModel.isSharing ?
+                    "Stop sharing content" : "Share in app content"
+                let inAppContentShareAction = UIAlertAction(title: inAppContentShareTitle,
+                                                            style: .default,
+                                                            handler: { _ in self.toggleInAppContentShare() })
+                optionMenu.addAction(inAppContentShareAction)
+            #endif
+        }
+
+        if meetingModel.primaryExternalMeetingId.isEmpty {
+            // Only show for normal or primary meeting attendees
+            let isLiveTranscriptionEnabled = meetingModel.captionsModel.isLiveTranscriptionEnabled
+            let nextLiveTranscriptionStatus = nextOnOrOff(current: isLiveTranscriptionEnabled)
+            let liveTranscriptionAction = UIAlertAction(title: "Turn \(nextLiveTranscriptionStatus) Live Transcription",
+                                                 style: .default,
+                                                 handler: { _ in
+                                                    meetingModel.setLiveTranscriptionEnabled(enabled: !isLiveTranscriptionEnabled)
+                                                 })
+            optionMenu.addAction(liveTranscriptionAction)
+        }
+
 
         let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
         optionMenu.addAction(cancelAction)
@@ -473,6 +524,9 @@ class MeetingViewController: UIViewController {
 
     @IBAction func inputTextChanged(_: Any, forEvent _: UIEvent) {
         guard let text = inputText.text else {
+            return
+        }
+        if let model = meetingModel, !model.primaryExternalMeetingId.isEmpty && !model.isPromotedToPrimaryMeeting {
             return
         }
         sendMessageButton.isEnabled = !text.isEmpty
@@ -588,6 +642,48 @@ class MeetingViewController: UIViewController {
         meetingModel.videoModel.isUsingExternalVideoSource.toggle()
     }
 
+    @objc private func togglePrimaryMeetingPromotion() {
+        guard let meetingModel = meetingModel else {
+            return
+        }
+        if !meetingModel.isPromotedToPrimaryMeeting {
+            if let credentials = meetingModel.primaryMeetingMeetingSessionCredentials {
+                // Reuse previously retrieved crednetials
+                meetingModel.videoModel.promoteToPrimaryMeeting(
+                    credentials: credentials, observer: self)
+            } else {
+                JoinRequestService.postJoinRequest(meetingId: meetingModel.primaryExternalMeetingId,
+                                                   name: "promoted-\(meetingModel.selfName)",
+                                                   overriddenEndpoint: MeetingModule.shared().cachedOverriddenEndpoint,
+                                                   primaryExternalMeetingId: "")
+                { joinMeetingResponse in
+                    if let joinMeetingResponse = joinMeetingResponse {
+                        self.logger.info(msg: "Attempting to promote to primary meeting")
+                        let meetingResp = JoinRequestService.getCreateMeetingResponse(from: joinMeetingResponse)
+                        let attendeeResp = JoinRequestService.getCreateAttendeeResponse(from: joinMeetingResponse)
+                        let meetingSessionConfiguration = MeetingSessionConfiguration(
+                            createMeetingResponse: meetingResp,
+                            createAttendeeResponse: attendeeResp,
+                            urlRewriter: { (url: String) -> String in return url })
+                        meetingModel.primaryMeetingMeetingSessionCredentials = meetingSessionConfiguration.credentials
+                        meetingModel.videoModel.promoteToPrimaryMeeting(
+                            credentials: meetingSessionConfiguration.credentials, observer: self)
+                    }
+                }
+            }
+        } else {
+            meetingModel.videoModel.demoteFromPrimaryMeeting()
+        }
+    }
+    
+    private func enableOrDisableButtonsForReplicatedMeeting(enabled: Bool) {
+        muteButton.isEnabled = enabled
+        cameraButton.isEnabled = enabled
+        sendMessageButton.isEnabled = enabled
+        muteButton.isEnabled = enabled
+        broadcastButton.isEnabled = enabled
+    }
+
     private func nextOnOrOff(current: Bool) -> String {
         return current ? "off" : "on"
     }
@@ -647,17 +743,20 @@ extension MeetingViewController: UICollectionViewDataSource {
         let isSelf = indexPath.item == 0
         let videoTileState = meetingModel.videoModel.getVideoTileState(for: indexPath)
         let displayName = meetingModel.getVideoTileDisplayName(for: indexPath)
+        let attendeeId = meetingModel.getVideoTileAttendeeId(for: indexPath)
 
         guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: videoTileCellReuseIdentifier,
                                                             for: indexPath) as? VideoTileCell else {
             return VideoTileCell()
         }
 
-        cell.updateCell(name: displayName,
+        cell.updateCell(id: attendeeId,
+                        name: displayName,
                         isSelf: isSelf,
                         videoTileState: videoTileState,
                         tag: indexPath.row)
         cell.delegate = meetingModel.videoModel
+        cell.viewController = self
 
         if let tileState = videoTileState {
             if tileState.isLocalTile, !tileState.isContent, meetingModel.videoModel.isFrontCameraActive {
@@ -666,5 +765,34 @@ extension MeetingViewController: UICollectionViewDataSource {
             meetingModel.bind(videoRenderView: cell.videoRenderView, tileId: tileState.tileId)
         }
         return cell
+    }
+}
+
+// MARK: PrimaryMeetingPromotionObserver
+
+extension MeetingViewController: PrimaryMeetingPromotionObserver {
+    func didPromoteToPrimaryMeeting(status: MeetingSessionStatus) {
+        guard let meetingModel = meetingModel else {
+            return
+        }
+        self.logger.info(msg: "Primary meeting promotion completed with status \(status.statusCode.description)")
+        if status.statusCode == MeetingSessionStatusCode.ok {
+            self.view.makeToast("Successfully promote to primary meeting")
+            meetingModel.isPromotedToPrimaryMeeting = true
+            self.enableOrDisableButtonsForReplicatedMeeting(enabled: true)
+        } else {
+            self.view.makeToast("Failed to promote to primary meeting")
+            meetingModel.isPromotedToPrimaryMeeting = false
+            self.enableOrDisableButtonsForReplicatedMeeting(enabled: false)
+        }
+    }
+
+    func didDemoteFromPrimaryMeeting(status: MeetingSessionStatus) {
+        guard let meetingModel = meetingModel else {
+            return
+        }
+        self.logger.info(msg: "Primary meeting demotion completed with status \(status.statusCode.description)")
+        meetingModel.isPromotedToPrimaryMeeting = false
+        self.enableOrDisableButtonsForReplicatedMeeting(enabled: false)
     }
 }

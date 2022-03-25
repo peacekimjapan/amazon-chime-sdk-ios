@@ -20,9 +20,11 @@ class DefaultAudioClientObserver: NSObject, AudioClientDelegate {
     private var currentAudioState = SessionStateControllerAction.initialize
     private var currentAudioStatus = MeetingSessionStatusCode.ok
     private let realtimeObservers = ConcurrentMutableSet()
+    private let transcriptEventObservers = ConcurrentMutableSet()
     private let logger: Logger
     private let eventAnalyticsController: EventAnalyticsController
     private let meetingStatsCollector: MeetingStatsCollector
+    private var primaryMeetingPromotionObserver: PrimaryMeetingPromotionObserver?
 
     private let audioLock: AudioLock
 
@@ -170,6 +172,7 @@ class DefaultAudioClientObserver: NSObject, AudioClientDelegate {
 
         if let attendeesWithJoinedStatus = newAttendeeMap[AttendeeStatus.joined] {
             let attendeesJoined = attendeesWithJoinedStatus.subtracting(currentAttendeeSet)
+            logger.info(msg: "attendeesJoined: \(attendeesJoined)")
             if !attendeesJoined.isEmpty {
                 ObserverUtils.forEach(observers: realtimeObservers) { (observer: RealtimeObserver) in
                     observer.attendeesDidJoin(attendeeInfo: [AttendeeInfo](attendeesJoined))
@@ -180,6 +183,7 @@ class DefaultAudioClientObserver: NSObject, AudioClientDelegate {
 
         if let attendeesWithLeftStatus = newAttendeeMap[AttendeeStatus.left] {
             if !attendeesWithLeftStatus.isEmpty {
+                logger.info(msg: "attendeesLeft: \(attendeesWithLeftStatus)")
                 ObserverUtils.forEach(observers: realtimeObservers) { (observer: RealtimeObserver) in
                     observer.attendeesDidLeave(attendeeInfo: [AttendeeInfo](attendeesWithLeftStatus))
                 }
@@ -189,11 +193,108 @@ class DefaultAudioClientObserver: NSObject, AudioClientDelegate {
 
         if let attendeesWithDroppedStatus = newAttendeeMap[AttendeeStatus.dropped] {
             if !attendeesWithDroppedStatus.isEmpty {
+                logger.info(msg: "attendeesDropped: \(attendeesWithDroppedStatus)")
                 ObserverUtils.forEach(observers: realtimeObservers) { (observer: RealtimeObserver) in
                     observer.attendeesDidDrop(attendeeInfo: [AttendeeInfo](attendeesWithDroppedStatus))
                 }
                 currentAttendeeSet.subtract(attendeesWithDroppedStatus)
             }
+        }
+    }
+
+    public func transcriptEventsReceived(_ events: [Any]?) {
+        guard let internalEvents = events as? [TranscriptEventInternal] else {
+            return
+        }
+
+        internalEvents.forEach { rawEvent in
+            var event: TranscriptEvent?;
+            if let rawStatus = rawEvent as? TranscriptionStatusInternal {
+                event = TranscriptionStatus(type: Converters.Transcript.toTranscriptionStatusType(type: rawStatus.type),
+                                            eventTimeMs: rawStatus.eventTimeMs,
+                                            transcriptionRegion: rawStatus.transcriptionRegion,
+                                            transcriptionConfiguration: rawStatus.transcriptionConfiguration,
+                                            message: rawStatus.message)
+            } else if let rawTranscript = rawEvent as? TranscriptInternal {
+                var results: [TranscriptResult] = []
+                rawTranscript.results.forEach { rawResult in
+                    var alternatives: [TranscriptAlternative] = []
+                    var entities: [TranscriptEntity] = []
+                    var languageIdentification: [TranscriptLanguageWithScore] = []
+                    rawResult.alternatives.forEach { rawAlternative in
+                        let items = rawAlternative.items.map {
+                            TranscriptItem(type: Converters.Transcript.toTranscriptItemType(type: $0.type), startTimeMs: $0.startTimeMs,
+                                           endTimeMs: $0.endTimeMs, attendee: Converters.Transcript.toAttendeeInfo(attendeeInfo: $0.attendee),
+                                           content: $0.content, vocabularyFilterMatch: $0.vocabularyFilterMatch,
+                                           stable: $0.stable, confidence: $0.confidence)
+                        }
+                
+                        if rawAlternative.entities != nil {
+                            entities = rawAlternative.entities.map {
+                                TranscriptEntity(type: $0.type, content: $0.content, category: $0.category,
+                                                 confidence: $0.confidence, startTimeMs: $0.startTimeMs, endTimeMs: $0.endTimeMs)
+                            }
+                        }
+                       
+                        let alternative = TranscriptAlternative(items: items, transcript: rawAlternative.transcript, entities: entities)
+                        alternatives.append(alternative)
+                    }
+                    
+                    
+                    if rawResult.languageIdentification != nil {
+                        languageIdentification = rawResult.languageIdentification.map {
+                            TranscriptLanguageWithScore(languageCode: $0.languageCode, score: $0.score)
+                        }
+                    }
+                    
+                    let result = TranscriptResult(resultId: rawResult.resultId,
+                                                  channelId: rawResult.channelId,
+                                                  isPartial: rawResult.isPartial,
+                                                  startTimeMs: rawResult.startTimeMs,
+                                                  endTimeMs: rawResult.endTimeMs,
+                                                  alternatives: alternatives,
+                                                  languageCode: rawResult.languageCode,
+                                                  languageIdentification: languageIdentification)
+                    results.append(result)
+                }
+                event = Transcript(results: results)
+            } else {
+                self.logger.error(msg: "Received transcript event in unknown format")
+            }
+
+            if let transcriptEvent = event {
+                ObserverUtils.forEach(observers: transcriptEventObservers) { (observer: TranscriptEventObserver) in
+                        observer.transcriptEventDidReceive(transcriptEvent: transcriptEvent)
+                }
+            }
+        }
+    }
+
+    public func primaryMeetingEventReceived(
+        _ type: PrimaryMeetingEventTypeInternal,
+        status: PrimaryMeetingEventStatusInternal) {
+        let code: MeetingSessionStatusCode
+        switch status {
+        case PrimaryMeetingEventStatusInternal.Ok:
+            code = MeetingSessionStatusCode.ok
+        case PrimaryMeetingEventStatusInternal.CallAtCapacity:
+            code = MeetingSessionStatusCode.audioCallAtCapacity
+        case PrimaryMeetingEventStatusInternal.AuthenticationFailed:
+            code = MeetingSessionStatusCode.audioAuthenticationRejected
+        default:
+            code = MeetingSessionStatusCode.unknown
+        }
+
+        switch type {
+        case PrimaryMeetingEventTypeInternal.joinAck:
+            self.primaryMeetingPromotionObserver?
+                .didPromoteToPrimaryMeeting(status: MeetingSessionStatus(statusCode: code))
+        case PrimaryMeetingEventTypeInternal.leave:
+            self.primaryMeetingPromotionObserver?
+                .didDemoteFromPrimaryMeeting(status: MeetingSessionStatus(statusCode: code))
+            self.primaryMeetingPromotionObserver = nil
+        default:
+            self.logger.error(msg: "Unexpected primary meeting event type \(type)")
         }
     }
 
@@ -222,6 +323,10 @@ class DefaultAudioClientObserver: NSObject, AudioClientDelegate {
             notifyAudioClientObserver { (observer: AudioVideoObserver) in
                 observer.audioSessionDidStart(reconnecting: true)
             }
+            // We will not be promoted on reconnection
+            self.primaryMeetingPromotionObserver?
+                .didDemoteFromPrimaryMeeting(status: MeetingSessionStatus.init(statusCode: MeetingSessionStatusCode.audioInternalServerError))
+            self.primaryMeetingPromotionObserver = nil
         case .finishConnecting:
             switch (newAudioStatus, currentAudioStatus) {
             case (.ok, .networkBecomePoor):
@@ -342,5 +447,17 @@ extension DefaultAudioClientObserver: AudioClientObserver {
 
     func unsubscribeFromRealTimeEvents(observer: RealtimeObserver) {
         realtimeObservers.remove(observer)
+    }
+
+    func subscribeToTranscriptEvent(observer: TranscriptEventObserver) {
+        transcriptEventObservers.add(observer)
+    }
+
+    func unsubscribeFromTranscriptEvent(observer: TranscriptEventObserver) {
+        transcriptEventObservers.remove(observer)
+    }
+
+    func setPrimaryMeetingPromotionObserver(observer: PrimaryMeetingPromotionObserver) {
+        primaryMeetingPromotionObserver = observer
     }
 }

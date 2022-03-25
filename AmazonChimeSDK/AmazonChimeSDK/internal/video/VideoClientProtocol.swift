@@ -19,6 +19,13 @@ import Foundation
                token: String!,
                sending: Bool,
                config: VideoConfiguration!,
+               appInfo: app_detailed_info_t,
+               signalingUrl: String!)
+
+    func start(_ callId: String!,
+               token: String!,
+               sending: Bool,
+               config: VideoConfiguration!,
                appInfo: app_detailed_info_t)
 
     func stop()
@@ -36,6 +43,13 @@ import Foundation
     func videoLogCallBack(_ logLevel: video_client_loglevel_t, msg: String!)
 
     func sendDataMessage(_ topic: String!, data: UnsafePointer<Int8>!, lifetimeMs: Int32)
+
+    func updateVideoSourceSubscriptions(_ addedOrUpdated: [AnyHashable: Any]!,
+                                        withRemoved: [Any]!)
+
+    func promotePrimaryMeeting(_ attendeeId: String!, externalUserId: String!, joinToken: String!)
+
+    func demoteFromPrimaryMeeting()
 }
 
 extension VideoClient: VideoClientProtocol {}

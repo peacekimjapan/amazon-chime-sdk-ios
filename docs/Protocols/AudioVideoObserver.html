@@ -18,17 +18,17 @@
     <header>
       <div class="content-wrapper">
         <p><a href="../index.html"> Docs</a></p>
-        <p class="header-right">
+        <div class="header-right">
           <form role="search" action="../search.json">
             <input type="text" placeholder="Search documentation" data-typeahead>
           </form>
-        </p>
+        </div>
       </div>
     </header>
     <div class="content-wrapper">
       <p id="breadcrumbs">
         <a href="../index.html"> Reference</a>
-        <img id="carat" src="../img/carat.png" />
+        <img id="carat" src="../img/carat.png" alt=""/>
         AudioVideoObserver Protocol Reference
       </p>
     </div>
@@ -43,6 +43,9 @@
               </li>
               <li class="nav-group-task">
                 <a href="../Classes/AttendeeInfo.html">AttendeeInfo</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/AudioVideoConfiguration.html">AudioVideoConfiguration</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Classes/ConsoleLogger.html">ConsoleLogger</a>
@@ -81,9 +84,6 @@
                 <a href="../Classes/DefaultContentShareController.html">DefaultContentShareController</a>
               </li>
               <li class="nav-group-task">
-                <a href="../Classes/DefaultContentShareVideoClientController.html">DefaultContentShareVideoClientController</a>
-              </li>
-              <li class="nav-group-task">
                 <a href="../Classes/DefaultDeviceController.html">DefaultDeviceController</a>
               </li>
               <li class="nav-group-task">
@@ -99,9 +99,6 @@
                 <a href="../Classes/DefaultMeetingSession.html">DefaultMeetingSession</a>
               </li>
               <li class="nav-group-task">
-                <a href="../Classes/DefaultMeetingStatsCollector.html">DefaultMeetingStatsCollector</a>
-              </li>
-              <li class="nav-group-task">
                 <a href="../Classes/DefaultModality.html">DefaultModality</a>
               </li>
               <li class="nav-group-task">
@@ -115,9 +112,6 @@
               </li>
               <li class="nav-group-task">
                 <a href="../Classes/DefaultVideoTileController.html">DefaultVideoTileController</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Classes/DeviceUtils.html">DeviceUtils</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Classes/InAppScreenCaptureSource.html">InAppScreenCaptureSource</a>
@@ -177,6 +171,9 @@
                 <a href="../Classes/NoopEventReporterFactory.html">NoopEventReporterFactory</a>
               </li>
               <li class="nav-group-task">
+                <a href="../Classes/RemoteVideoSource.html">RemoteVideoSource</a>
+              </li>
+              <li class="nav-group-task">
                 <a href="../Classes/ReplayKitSource.html">ReplayKitSource</a>
               </li>
               <li class="nav-group-task">
@@ -186,7 +183,25 @@
                 <a href="../Classes/SignalUpdate.html">SignalUpdate</a>
               </li>
               <li class="nav-group-task">
-                <a href="../Classes.html#/c:@M@AmazonChimeSDK@objc(cs)TURNRequestService">TURNRequestService</a>
+                <a href="../Classes/Transcript.html">Transcript</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TranscriptAlternative.html">TranscriptAlternative</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TranscriptEntity.html">TranscriptEntity</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TranscriptItem.html">TranscriptItem</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TranscriptLanguageWithScore.html">TranscriptLanguageWithScore</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TranscriptResult.html">TranscriptResult</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/TranscriptionStatus.html">TranscriptionStatus</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Classes/URLRewriterUtils.html">URLRewriterUtils</a>
@@ -204,7 +219,10 @@
                 <a href="../Classes/VideoFramePixelBuffer.html">VideoFramePixelBuffer</a>
               </li>
               <li class="nav-group-task">
-                <a href="../Classes.html#/c:@M@AmazonChimeSDK@objc(cs)VideoFrameResender">VideoFrameResender</a>
+                <a href="../Classes/VideoResolution.html">VideoResolution</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Classes/VideoSubscriptionConfiguration.html">VideoSubscriptionConfiguration</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Classes/VideoTileState.html">VideoTileState</a>
@@ -218,7 +236,7 @@
             <a href="../Enums.html">Enumerations</a>
             <ul class="nav-group-tasks">
               <li class="nav-group-task">
-                <a href="../Enums/AttendeeStatus.html">AttendeeStatus</a>
+                <a href="../Enums/AudioMode.html">AudioMode</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Enums/CaptureSourceError.html">CaptureSourceError</a>
@@ -266,10 +284,19 @@
                 <a href="../Enums/SignalStrength.html">SignalStrength</a>
               </li>
               <li class="nav-group-task">
+                <a href="../Enums/TranscriptItemType.html">TranscriptItemType</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/TranscriptionStatusType.html">TranscriptionStatusType</a>
+              </li>
+              <li class="nav-group-task">
                 <a href="../Enums/VideoContentHint.html">VideoContentHint</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Enums/VideoPauseState.html">VideoPauseState</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Enums/VideoPriority.html">VideoPriority</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Enums/VideoRotation.html">VideoRotation</a>
@@ -283,25 +310,10 @@
             <a href="../Extensions.html">Extensions</a>
             <ul class="nav-group-tasks">
               <li class="nav-group-task">
-                <a href="../Extensions.html#/c:objc(cs)AVAudioSession">AVAudioSession</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Extensions.html#/c:objc(cs)AudioClient">AudioClient</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Extensions/CMSampleBuffer.html">CMSampleBuffer</a>
-              </li>
-              <li class="nav-group-task">
                 <a href="../Extensions/Dictionary.html">Dictionary</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Extensions/NSDictionary.html">NSDictionary</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Extensions.html#/c:objc(cs)NSLock">NSLock</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Extensions.html#/c:objc(cs)VideoClient">VideoClient</a>
               </li>
             </ul>
           </li>
@@ -316,21 +328,6 @@
               </li>
               <li class="nav-group-task">
                 <a href="../Protocols/ActiveSpeakerPolicy.html">ActiveSpeakerPolicy</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Protocols/AudioClientController.html">AudioClientController</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Protocols/AudioClientObserver.html">AudioClientObserver</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Protocols/AudioClientProtocol.html">AudioClientProtocol</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Protocols/AudioLock.html">AudioLock</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Protocols/AudioSession.html">AudioSession</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Protocols/AudioVideoControllerFacade.html">AudioVideoControllerFacade</a>
@@ -348,16 +345,10 @@
                 <a href="../Protocols/CaptureSourceObserver.html">CaptureSourceObserver</a>
               </li>
               <li class="nav-group-task">
-                <a href="../Protocols/ClientMetricsCollector.html">ClientMetricsCollector</a>
-              </li>
-              <li class="nav-group-task">
                 <a href="../Protocols/ContentShareController.html">ContentShareController</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Protocols/ContentShareObserver.html">ContentShareObserver</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Protocols/ContentShareVideoClientController.html">ContentShareVideoClientController</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Protocols/DataMessageObserver.html">DataMessageObserver</a>
@@ -399,10 +390,10 @@
                 <a href="../Protocols/MeetingSession.html">MeetingSession</a>
               </li>
               <li class="nav-group-task">
-                <a href="../Protocols/MeetingStatsCollector.html">MeetingStatsCollector</a>
+                <a href="../Protocols/MetricsObserver.html">MetricsObserver</a>
               </li>
               <li class="nav-group-task">
-                <a href="../Protocols/MetricsObserver.html">MetricsObserver</a>
+                <a href="../Protocols/PrimaryMeetingPromotionObserver.html">PrimaryMeetingPromotionObserver</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Protocols/RealtimeControllerFacade.html">RealtimeControllerFacade</a>
@@ -414,13 +405,13 @@
                 <a href="../Protocols/Scheduler.html">Scheduler</a>
               </li>
               <li class="nav-group-task">
+                <a href="../Protocols.html#/c:@M@AmazonChimeSDK@objc(pl)TranscriptEvent">TranscriptEvent</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="../Protocols/TranscriptEventObserver.html">TranscriptEventObserver</a>
+              </li>
+              <li class="nav-group-task">
                 <a href="../Protocols/VideoCaptureSource.html">VideoCaptureSource</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Protocols/VideoClientController.html">VideoClientController</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="../Protocols/VideoClientProtocol.html">VideoClientProtocol</a>
               </li>
               <li class="nav-group-task">
                 <a href="../Protocols/VideoFrameBuffer.html">VideoFrameBuffer</a>
@@ -830,8 +821,7 @@ and there will be no attempt of reconnecting it.</p>
                     <section class="section">
                       <div class="pointer"></div>
                       <div class="abstract">
-                        <p>Called when the video session has stopped from a started state with the reason
-provided in the status.</p>
+                        <p>Called when the video session has stopped from a started state with the reason provided in the status.</p>
 
 <p>Note: this callback will be called on main thread.</p>
 
@@ -866,16 +856,116 @@ provided in the status.</p>
                     </section>
                   </div>
                 </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/c:@M@AmazonChimeSDK@objc(pl)AudioVideoObserver(im)remoteVideoSourcesDidBecomeAvailableWithSources:"></a>
+                    <a name="//apple_ref/swift/Method/remoteVideoSourcesDidBecomeAvailable(sources:)" class="dashAnchor"></a>
+                    <a class="token" href="#/c:@M@AmazonChimeSDK@objc(pl)AudioVideoObserver(im)remoteVideoSourcesDidBecomeAvailableWithSources:">remoteVideoSourcesDidBecomeAvailable(sources:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Called on the main thread when video sources become available.</p>
+
+<p>Video sources can be explicitly subscribed to through <code>updateVideoSourceSubscriptions</code>.
+These should be stored and used when <code>updateVideoSourceSubscriptions</code> is called (i.e. you cannot use <code><a href="../Classes/RemoteVideoSource.html">RemoteVideoSource</a></code> objects created manually). 
+See <code>updateVideoSourceSubscriptions</code> for more information.
+See note in <code>updateVideoSourceSubscriptions</code> documentation for information on 
+subscription behavior if <code>updateVideoSourceSubscriptions</code> is never called.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">func</span> <span class="nf">remoteVideoSourcesDidBecomeAvailable</span><span class="p">(</span><span class="nv">sources</span><span class="p">:</span> <span class="p">[</span><span class="kt"><a href="../Classes/RemoteVideoSource.html">RemoteVideoSource</a></span><span class="p">])</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>sources</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Array of remote video sources that are available</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/c:@M@AmazonChimeSDK@objc(pl)AudioVideoObserver(im)remoteVideoSourcesDidBecomeUnavailableWithSources:"></a>
+                    <a name="//apple_ref/swift/Method/remoteVideoSourcesDidBecomeUnavailable(sources:)" class="dashAnchor"></a>
+                    <a class="token" href="#/c:@M@AmazonChimeSDK@objc(pl)AudioVideoObserver(im)remoteVideoSourcesDidBecomeUnavailableWithSources:">remoteVideoSourcesDidBecomeUnavailable(sources:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Called on the main thread when video sources become unavailable.</p>
+
+<p>Note that these sources do not need to be removed via <code>updateVideoSourceSubscriptions</code>,
+as they will be automatically unsubscribed from.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">func</span> <span class="nf">remoteVideoSourcesDidBecomeUnavailable</span><span class="p">(</span><span class="nv">sources</span><span class="p">:</span> <span class="p">[</span><span class="kt"><a href="../Classes/RemoteVideoSource.html">RemoteVideoSource</a></span><span class="p">])</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>sources</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Array of video sources that are unavailable</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </li>
               </ul>
             </div>
           </section>
         </section>
         <section id="footer">
-          <p>&copy; 2021 <a class="link" href="" target="_blank" rel="noopener" rel="external">Amazon.com, Inc. or its affiliates</a>. All rights reserved. (Last updated: 2021-09-30)</p>
-          <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="noopener" rel="external">jazzy ♪♫ v0.14.0</a>, a <a class="link" href="https://realm.io" target="_blank" rel="noopener" rel="external">Realm</a> project.</p>
+          <p>&copy; 2022 <a class="link" href="" target="_blank" rel="external noopener">Amazon.com, Inc. or its affiliates</a>. All rights reserved. (Last updated: 2022-03-21)</p>
+          <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external noopener">jazzy ♪♫ v0.14.2</a>, a <a class="link" href="https://realm.io" target="_blank" rel="external noopener">Realm</a> project.</p>
         </section>
       </article>
     </div>
   </body>
-</div>
 </html>

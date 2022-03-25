@@ -17,6 +17,7 @@ class VideoModel: NSObject {
     private var selfVideoTileState: VideoTileState?
     private var remoteVideoTileStates: [(Int, VideoTileState)] = []
     private var userPausedVideoTileIds: Set<Int> = Set()
+    public var remoteVideoSourceConfigurations: Dictionary<RemoteVideoSource, VideoSubscriptionConfiguration> = Dictionary()
     private let audioVideoFacade: AudioVideoFacade
     let customSource: DefaultCameraCaptureSource
 
@@ -182,6 +183,14 @@ class VideoModel: NSObject {
         }
     }
 
+    func promoteToPrimaryMeeting(credentials: MeetingSessionCredentials, observer: PrimaryMeetingPromotionObserver) {
+        audioVideoFacade.promoteToPrimaryMeeting(credentials: credentials, observer: observer)
+    }
+
+    func demoteFromPrimaryMeeting() {
+        audioVideoFacade.demoteFromPrimaryMeeting()
+    }
+
     func isRemoteVideoDisplaying(tileId: Int) -> Bool {
         return remoteVideoStatesInCurrentPage.contains(where: { $0.0 == tileId })
     }
@@ -311,5 +320,14 @@ extension VideoModel: VideoTileCellDelegate {
                 }
             }
         }
+    }
+
+    func onUpdatePriorityButtonClicked(attendeeId: String, priority: VideoPriority) {
+        for (source, config) in remoteVideoSourceConfigurations {
+            if attendeeId == source.attendeeId {
+                config.priority = priority
+            }
+        }
+        audioVideoFacade.updateVideoSourceSubscriptions(addedOrUpdated: remoteVideoSourceConfigurations, removed: [])
     }
 }

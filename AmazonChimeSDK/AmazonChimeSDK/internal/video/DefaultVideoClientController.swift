@@ -14,22 +14,26 @@ import UIKit
 class DefaultVideoClientController: NSObject {
     var clientMetricsCollector: ClientMetricsCollector
     var logger: Logger
-    var videoClient: VideoClient?
+    var videoClient: VideoClientProtocol?
     var videoSourceAdapter = VideoSourceAdapter()
     var videoClientState: VideoClientState = .uninitialized
     let videoTileControllerObservers = ConcurrentMutableSet()
     let videoObservers = ConcurrentMutableSet()
     var dataMessageObservers = [String: ConcurrentMutableSet]()
+    // We have designed the SDK API to allow using `RemoteVideoSource` as a key in a map, e.g. for  `updateVideoSourceSubscription`.
+    // Therefore we need to map to a consistent set of sources from the internal sources, by using attendeeId as a unique identifier.
+    var cachedRemoteVideoSources = ConcurrentMutableSet()
+    var primaryMeetingPromotionObserver: PrimaryMeetingPromotionObserver?
 
     private let configuration: MeetingSessionConfiguration
-    private let defaultVideoClient: VideoClient
+    private let defaultVideoClient: VideoClientProtocol
 
     // This internal camera capture source is used for `startLocalVideo()` API without parameter.
     private let internalCaptureSource: DefaultCameraCaptureSource
     private var isInternalCaptureSourceRunning = true
     private let eventAnalyticsController: EventAnalyticsController
 
-    init(videoClient: VideoClient,
+    init(videoClient: VideoClientProtocol,
          clientMetricsCollector: ClientMetricsCollector,
          configuration: MeetingSessionConfiguration,
          logger: Logger,
@@ -187,6 +191,11 @@ extension DefaultVideoClientController: VideoClientDelegate {
         ObserverUtils.forEach(observers: videoObservers) { (observer: AudioVideoObserver) in
             observer.videoSessionDidStopWithStatus(sessionStatus: MeetingSessionStatus(statusCode: .ok))
         }
+
+        // We will not be promoted on reconnection
+        self.primaryMeetingPromotionObserver?
+            .didDemoteFromPrimaryMeeting(status: MeetingSessionStatus.init(statusCode: MeetingSessionStatusCode.audioInternalServerError))
+        self.primaryMeetingPromotionObserver = nil
     }
 
     public func videoClient(_ client: VideoClient?, cameraSendIsAvailable available: Bool) {
@@ -208,7 +217,7 @@ extension DefaultVideoClientController: VideoClientDelegate {
             if let strongSelf = self, let turnCredentials = turnCredentials {
                 let turnResponse = turnCredentials.toTURNSessionResponse(urlRewriter: strongSelf.configuration.urlRewriter,
                                                                          signalingUrl: signalingUrl)
-                strongSelf.videoClient?.updateTurnCreds(turnResponse, turn: VIDEO_CLIENT_TURN_FEATURE_ON)
+                (strongSelf.videoClient as? VideoClient)?.updateTurnCreds(turnResponse, turn: VIDEO_CLIENT_TURN_FEATURE_ON)
             }
         }
     }
@@ -229,9 +238,89 @@ extension DefaultVideoClientController: VideoClientDelegate {
             }
         }
     }
+    
+    public func remoteVideoSourcesDidBecomeAvailable(_ sourcesInternal: [RemoteVideoSourceInternal]) {
+        if sourcesInternal.isEmpty { return } // Don't callback for empty lists
+
+        var sources = [RemoteVideoSource]()
+        sourcesInternal.forEach { source in
+            var foundCachedRemoteVideoSource = false
+            cachedRemoteVideoSources.forEach { cachedRemoteVideoSource in
+                if let cachedRemoteVideoSource = cachedRemoteVideoSource as? RemoteVideoSource {
+                    if source.attendeeId == cachedRemoteVideoSource.attendeeId {
+                        sources.append(cachedRemoteVideoSource)
+                        foundCachedRemoteVideoSource = true
+                    }
+                }
+            }
+
+            if foundCachedRemoteVideoSource {
+                return
+            }
+            // Otherwise create a new one and add to cached set
+            let newSource = RemoteVideoSource()
+            newSource.attendeeId = source.attendeeId
+            sources.append(newSource)
+        }
+        ObserverUtils.forEach(observers: videoObservers) { (observer: AudioVideoObserver) in
+            observer.remoteVideoSourcesDidBecomeAvailable(sources: sources)
+        }
+    }
+    
+    public func remoteVideoSourcesDidBecomeUnavailable(_ sourcesInternal: [RemoteVideoSourceInternal]) {
+        if sourcesInternal.isEmpty { return } // Don't callback for empty lists
+
+        var sourcesToRemove = [RemoteVideoSource]()
+        sourcesInternal.forEach { source in
+            cachedRemoteVideoSources.forEach { cachedRemoteVideoSource in
+                if let cachedRemoteVideoSource = cachedRemoteVideoSource as? RemoteVideoSource {
+                    if source.attendeeId == cachedRemoteVideoSource.attendeeId {
+                        sourcesToRemove.append(cachedRemoteVideoSource)
+                    }
+                }
+            }
+        }
+        sourcesToRemove.forEach { sourceToRemove in
+            cachedRemoteVideoSources.remove(sourceToRemove)
+        }
+        ObserverUtils.forEach(observers: videoObservers) { (observer: AudioVideoObserver) in
+            observer.remoteVideoSourcesDidBecomeUnavailable(sources: sourcesToRemove)
+        }
+    }
 
     public func videoClientTurnURIsReceived(_ uris: [String]) -> [String] {
         return uris.map(self.configuration.urlRewriter)
+    }
+
+    public func videoClientDidPromote(toPrimaryMeeting status: video_client_status_t) {
+        let code: MeetingSessionStatusCode
+        switch status {
+        case VIDEO_CLIENT_OK:
+            code = MeetingSessionStatusCode.ok
+        case VIDEO_CLIENT_ERR_PRIMARY_MEETING_JOIN_AT_CAPACITY:
+            code = MeetingSessionStatusCode.audioCallAtCapacity
+        case VIDEO_CLIENT_ERR_PRIMARY_MEETING_JOIN_AUTHENTICATION_FAILED:
+            code = MeetingSessionStatusCode.audioAuthenticationRejected
+        default:
+            code = MeetingSessionStatusCode.unknown
+        }
+        self.primaryMeetingPromotionObserver?
+            .didPromoteToPrimaryMeeting(status: MeetingSessionStatus.init(statusCode: code))
+    }
+
+    public func videoClientDidDemote(fromPrimaryMeeting status: video_client_status_t) {
+        let code: MeetingSessionStatusCode
+        switch status {
+        case VIDEO_CLIENT_OK:
+            code = MeetingSessionStatusCode.ok
+        case VIDEO_CLIENT_ERR_PRIMARY_MEETING_JOIN_AUTHENTICATION_FAILED:
+            code = MeetingSessionStatusCode.audioAuthenticationRejected
+        default:
+            code = MeetingSessionStatusCode.unknown
+        }
+        self.primaryMeetingPromotionObserver?
+            .didDemoteFromPrimaryMeeting(status: MeetingSessionStatus.init(statusCode: code))
+        self.primaryMeetingPromotionObserver = nil
     }
 }
 
@@ -369,6 +458,30 @@ extension DefaultVideoClientController: VideoClientController {
         videoClient?.setRemotePause(videoId, pause: pause)
     }
 
+    public func updateVideoSourceSubscriptions(addedOrUpdated: Dictionary<RemoteVideoSource, VideoSubscriptionConfiguration>, removed: Array<RemoteVideoSource>) {
+        guard videoClientState != .uninitialized else {
+            logger.fault(msg: "VideoClient is not initialized so returning without doing anything")
+            return
+        }
+        logger.info(msg: "Updating video subscriptions")
+        
+        let addedOrUpdatedInternal = Dictionary(uniqueKeysWithValues:
+            addedOrUpdated.map { source, config in
+                (RemoteVideoSourceInternal(attendeeId: source.attendeeId),
+                 VideoSubscriptionConfigurationInternal(
+                    priority: PriorityInternal(rawValue: UInt(config.priority.rawValue)) ?? PriorityInternal.highest,
+                    targetResolution: ResolutionInternal.init(width: Int32(config.targetResolution.width),
+                                                              height: Int32(config.targetResolution.height))))
+        })
+        
+        var removedInternal = [RemoteVideoSourceInternal]()
+        removed.forEach{ source in
+            removedInternal.append(RemoteVideoSourceInternal(attendeeId: source.attendeeId))
+        }
+        
+        videoClient?.updateVideoSourceSubscriptions(addedOrUpdatedInternal as Dictionary<AnyHashable, Any>, withRemoved: removedInternal as [Any])
+    }
+
     public func subscribeToReceiveDataMessage(topic: String, observer: DataMessageObserver) {
         if dataMessageObservers[topic] == nil {
             dataMessageObservers[topic] = ConcurrentMutableSet()
@@ -382,7 +495,7 @@ extension DefaultVideoClientController: VideoClientController {
 
     public func sendDataMessage(topic: String, data: Any, lifetimeMs: Int32 = 0) throws {
         guard videoClientState == .started else {
-            logger.error(msg: "Cannot send data message because videoClientState=\(videoClientState)")
+            logger.error(msg: "Cannot send data message because videoClientState=\(videoClientState.description)")
             return
         }
 
@@ -397,6 +510,8 @@ extension DefaultVideoClientController: VideoClientController {
         var dataContainer: Data?
         if let dataAsString = data as? String {
             dataContainer = dataAsString.data(using: .utf8)
+        } else if let dataAsByteArray = data as? [UInt8] {
+            dataContainer = Data(dataAsByteArray)
         } else if JSONSerialization.isValidJSONObject(data) {
             dataContainer = try JSONSerialization.data(withJSONObject: data)
         } else {
@@ -415,5 +530,26 @@ extension DefaultVideoClientController: VideoClientController {
         } else {
             throw SendDataMessageError.invalidData
         }
+    }
+
+    func promoteToPrimaryMeeting(credentials: MeetingSessionCredentials,
+                                  observer: PrimaryMeetingPromotionObserver) {
+        guard videoClientState == .started else {
+            logger.error(msg: "Cannot join primary meeting because videoClientState=\(videoClientState)")
+            observer.didPromoteToPrimaryMeeting(status: MeetingSessionStatus(statusCode: MeetingSessionStatusCode.audioServiceUnavailable))
+            return
+        }
+        primaryMeetingPromotionObserver = observer
+        videoClient?.promotePrimaryMeeting(credentials.attendeeId,
+                                             externalUserId: credentials.externalUserId,
+                                             joinToken: credentials.joinToken)
+    }
+
+    func demoteFromPrimaryMeeting() {
+        guard videoClientState == .started else {
+            logger.error(msg: "Cannot leave primary meeting because videoClientState=\(videoClientState)")
+            return
+        }
+        videoClient?.demoteFromPrimaryMeeting()
     }
 }

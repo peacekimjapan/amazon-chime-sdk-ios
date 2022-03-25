@@ -1,3 +1,54 @@
+## [Unreleased]
+
+### Added
+* Added [replicated meeting guide](https://github.com/aws/amazon-chime-sdk-android/blob/master/guides/replicated_meetings.md).
+
+### Fixed
+* Added proper call of demotion callback on audio or video disconnection.
+
+## [0.19.1] - 2022-03-10
+
+### Fixed
+* [Demo] Added overridden endpoint url capability to live transcription API.
+
+### Added
+
+* Added support to live transcription for new features including personally identifiable information content identification and redaction, partial results stabilization, custom language models, and language identification for Amazon Transcribe and PHI content identification for Amazon Transcribe Medical.
+* [Demo] Added language identification configuration for live transcription API.
+
+## [0.19.0] - 2022-02-24
+
+### Added
+* Added the meetingStartDurationMs event in ingestionEvents to record the time that elapsed between the start request and the beginning of the meeting.
+* Added priority based downlink policy to control the way how a recipient subscribes to the remote video sources. i.e. `updateVideoSourceSubscriptions(_:_:)` in `VideoClientController`.
+
+## [0.18.1] - 2022-02-10
+
+## [0.18.0] - 2021-12-21
+
+### Changed
+* Changed ContentShareController to use inbound turn credentials
+
+### Added
+* Added APIs for Audio Video configuration i.e `AudioVideoConfiguration` to be used during a meeting session.
+* Added support for joining meetings using one of `AudioMode.Mono16K`, `AudioMode.Mono48K` and `AudioMode.Stereo48K` audio modes.
+* **Breaking** The `AudioMode.Stereo48K` will be set as the default audio mode if not explicitly specified when starting the audio session. Earlier, Mono/16KHz audio was the default and the only audio mode supported.
+* [Demo] Added ways to join a meeting using various audio modes.
+
+## [0.17.0] - 2021-11-01
+
+### Added
+* Supports integration with Amazon Transcribe and Amazon Transcribe Medical for live transcription. The Amazon Chime Service uses its active talker algorithm to select the top two active talkers, and sends their audio to Amazon Transcribe (or Amazon Transcribe Medical) in your AWS account. User-attributed transcriptions are then sent directly to every meeting attendee via data messages. Use transcriptions to overlay subtitles, build a transcript, or perform real-time content analysis. For more information, visit [the live transcription guide](https://docs.aws.amazon.com/chime/latest/dg/meeting-transcription.html).
+* [Demo] Added meeting captions functionality based on the live transcription APIs. You will need to have a serverless deployment to create new AWS Lambda endpoints for live transcription. Follow [the live transcription guide](https://docs.aws.amazon.com/chime/latest/dg/meeting-transcription.html) to create necessary service-linked role so that the demo app can call Amazon Transcribe and Amazon Transcribe Medical on your behalf.
+
+### Fixed
+* Fixed an issue that returns the `Other` type one of 2 duplicate audio devices on iOS 15.
+
+## [0.16.6] - 2021-10-14
+
+### Fixed
+* Fixed an issue where sending a ByteArray through data message fails
+
 ## [0.16.5] - 2021-09-30
 
 ## Changed
@@ -6,7 +57,6 @@
 ### Fixed
 * Fixed an issue where audio session is stopped when switch between bluetooth device and speaker.
 * Fixed an issue on iOS 15 where `DefaultDeviceController` returns a duplicate entry for bluetooth audio device in `listAudioDevices()`.
-
 
 ## [0.16.4] - 2021-07-21
 ### Removed

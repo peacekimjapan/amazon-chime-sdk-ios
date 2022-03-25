@@ -36,20 +36,62 @@ And review the following guides:
 * [Content Share](guides/content_share.md)
 * [Meeting Events](guides/meeting_events.md)
 * [Event Ingestion](guides/event_ingestion.md)
+* [Configuring Remote Video Subscription](guides/configuring_remote_video_subscriptions.md)
 
 ## Include Amazon Chime SDK in Your Project
+You can integrate Amazon Chime SDK in your project from either CocoaPods or binaries through Github release.
 
-To include the SDK binaries in your own project, follow these steps.
+### From CocoaPods
+1. The Amazon Chime SDK is available through [CocoaPods](http://cocoapods.org/). If you have not installed CocoaPods, install CocoaPods by running the command:
+    ```
+    $ gem install cocoapods
+    $ pod setup
+    ```
+    Depending on your system settings, you may have to use sudo for installing cocoapods as follows:
+
+    ```
+    $ sudo gem install cocoapods
+    $ pod setup
+    ```
+2. In `AmazonChimeSDKDemo/` directory (the directory where your *.xcodeproj file is), run the following to create a Podfile in your project:
+    ```
+    $ pod init
+    ```
+3. Edit the `Podfile` to include `AmazonChimeSDK-Bitcode` into your project if you need bitcode:
+    ```
+    target 'YourTarget' do
+        pod 'AmazonChimeSDK-Bitcode'
+        ...
+    end
+    ```
+    If you don't need bitcode, you can add `AmazonChimeSDK-No-Bitcode` instead:
+    ```
+    target 'YourTarget' do
+        pod `AmazonChimeSDK-No-Bitcode`
+        ...
+    end
+    ```
+4. Then run the following command to installl pods:
+   ```
+   $ pod install --repo-update
+   ```
+5. To open your project, open the newly generated `*.xcworkspace` file in `AmazonChimeSDKDemo/` with XCode. You can do this by issuing the following command in your project folder
+   ```
+    $ xed .
+   ```
+   Note: Do *NOT* use *.xcodeproj to open project.
+
+### From Github Release Binaries
 
 For the purpose of setup, your project's root folder (where you can find your `.xcodeproj` file) will be referred to as `root`.
 
-### 1. Download Binaries
+#### 1. Download Binaries
 
 * Download the `AmazonChimeSDK` and `AmazonChimeSDKMedia` binaries from the latest [release](https://github.com/aws/amazon-chime-sdk-ios/releases/latest).
 
 * Unzip and copy the `.framework`s or `.xcframework`s to `root`, which depends on which framework your project uses.  For Xcode12.3 and later, please use `.xcframework` if you have compile issue. `.xcframework` is available after Amazon Chime SDK iOS v0.15.0
 
-### 2. Update Project File
+#### 2. Update Project File
 
 * Open your `.xcodeproj` file in Xcode and click on your build target.
 
@@ -84,8 +126,13 @@ To run the demo application, follow these steps.
 
 `git clone git@github.com:aws/amazon-chime-sdk-ios.git`
 
-### 2. Download Binary
-
+### 2. Import Amazon Chime SDK
+#### From CocoaPods
+In `AmazonChimeSDKDemo/`, run the following command to install pods:
+```
+$ pod install --repo-update
+```
+#### Or From Downloaded Binary
 * Download `AmazonChimeSDKMedia` binary with bitcode support from the latest [release](https://github.com/aws/amazon-chime-sdk-ios/releases/latest).
 
 * Unzip and copy the `AmazonChimeSDKMedia.framework` to `AmazonChimeSDK` folder.
@@ -130,6 +177,11 @@ Deploy the serverless demo from [amazon-chime-sdk-js](https://github.com/aws/ama
 * (Optional) Update `broadcastBundleId` and `appGroupId` in BOTH `AppConfiguration.swift` and `SampleHandler.swift` with the broadcast upload extension bundle ID and App Group ID if you want to test sharing device level screen capture. See [Content Share](https://github.com/aws/amazon-chime-sdk-ios/blob/master/guides/content_share.md) for more details.
 
 ### 6. Use Demo App to Join Meeting
+#### Run the AmazonChimeSDKDemoPods target with Amazon Chime SDK from CocoaPods
+After opening `*.xcworkspace` file in `AmazonChimeSDKDemo/` with XCode, select the `AmazonChimeSDKDemoPods` from the scheme dropdown list in the top bar of Xcode IDE, choose a build device and click the run button.
+
+#### Run the AmazonChimeSDKDemo target with Downloaded Amazon Chime SDK Binaries
+After opening `*.xcworkspace` file in `AmazonChimeSDKDemo/` with XCode, select the `AmazonChimeSDKDemo` from the scheme dropdown list in the top bar of Xcode IDE, choose a build device and click the run button.
 
 On the joining screen, choose to join the meeting without `CallKit` or join via `CallKit` incoming/outgoing call. Since the demo app does not have Push Notification, it delays joining via incoming call by 10 seconds to give user enough time to background the app or lock the screen to mimic the behavior.
 
@@ -158,6 +210,13 @@ You need to start the meeting session to start sending and receiving audio. Make
 
 ```swift
 meetingSession.audioVideo.start()
+```
+
+The default audio format is Stereo/48KHz i.e Stereo Audio with 48KHz sampling rate (stereo48K). Other supported audio formats include Mono/48KHz (mono48K) or Mono/16KHz (mono16K). You can specify a non-default audio mode in `AudioVideoConfiguration`, and then start the meeting session.
+
+```swift
+var audioVideoConfig = AudioVideoConfiguration()
+meetingSession.audioVideo.start(audioVideoConfiguration: audioVideoConfig)
 ```
 
 #### Use case 2. Add an observer to receive audio and video session life cycle events.
@@ -254,9 +313,19 @@ let activeAudioDevice = meetingSession.audioVideo.getActiveAudioDevice()
 
 ### Audio
 
+#### Use case 8. Choose the audio configuration.
+
+> When joining a meeting, *Mono/16KHz*, *Mono/48KHz* and *Stereo/48KHz* are supported. *Stereo/48KHz* will be set as the default audio mode if not explicitly specified when starting the audio session.
+
+```swift
+meetingSession.audioVideo.start() // starts the audio video session with Stereo/48KHz audio and callkit disabled
+
+meetingSession.audioVideo.start(audioVideoConfiguration) // starts the audio video session with the specified [AudioVideoConfiguration]
+```
+
 > Note: So far, you've added observers to receive device and session lifecycle events. In the following use cases, you'll use the real-time API methods to send and receive volume indicators and control mute state.
 
-#### Use case 8. Mute and unmute an audio input.
+#### Use case 9. Mute and unmute an audio input.
 
 ```swift
 let muted = meetingSession.audioVideo.realtimeLocalMute() // returns true if muted, false if failed
@@ -264,7 +333,7 @@ let muted = meetingSession.audioVideo.realtimeLocalMute() // returns true if mut
 let unmuted = meetingSession.audioVideo.realtimeLocalUnmute // returns true if unmuted, false if failed
 ```
 
-#### Use case 9. Add an observer to observe realtime events such as volume changes/signal change/muted status of a specific attendee.
+#### Use case 10. Add an observer to observe realtime events such as volume changes/signal change/muted status of a specific attendee.
 
 You can use this to build real-time indicators UI and get them updated for changes delivered by the array.
 
@@ -314,7 +383,7 @@ class MyRealtimeObserver: RealtimeObserver {
 }
 ```
 
-#### Use case 10. Detect active speakers and active scores of speakers.
+#### Use case 11. Detect active speakers and active scores of speakers.
 
 You can use the `activeSpeakerDidDetect` event to enlarge or emphasize the most active speaker’s video tile if available. By setting the `scoreCallbackIntervalMs` and implementing `activeSpeakerScoreDidChange`, you can receive scores of the active speakers periodically.
 
@@ -363,7 +432,7 @@ class MyActiveSpeakerObserver: ActiveSpeakerObserver {
 
 You can find more details on adding/removing/viewing video from [Building a meeting application on ios using the Amazon Chime SDK](https://aws.amazon.com/blogs/business-productivity/building-a-meeting-application-on-ios-using-the-amazon-chime-sdk/).
 
-#### Use case 11. Start receiving remote video.
+#### Use case 12. Start receiving remote video.
 
 You can call `startRemoteVideo` to start receiving remote videos, as this doesn’t happen by default.
 
@@ -371,7 +440,7 @@ You can call `startRemoteVideo` to start receiving remote videos, as this doesn�
 meetingSession.audioVideo.startRemoteVideo()
 ```
 
-#### Use case 12. Stop receiving remote video.
+#### Use case 13. Stop receiving remote video.
 
 `stopRemoteVideo` stops receiving remote videos and triggers `onVideoTileRemoved` for existing remote videos.
 
@@ -379,7 +448,7 @@ meetingSession.audioVideo.startRemoteVideo()
 meetingSession.audioVideo.stopRemoteVideo()
 ```
 
-#### Use case 13. View remote video tile.
+#### Use case 14. View remote video tile.
 
 ```swift
 class MyVideoTileObserver: VideoTileObserver {
@@ -402,7 +471,7 @@ class MyVideoTileObserver: VideoTileObserver {
 }
 ```
 
-#### Use case 14. Start sharing your video.
+#### Use case 15. Start sharing your video.
 
 ```swift
 // Use internal camera capture for the local video
@@ -414,13 +483,13 @@ meetingSession.audioVideo.switchCamera()
 // Or you can inject custom video source for local video, see custom video guide
 ```
 
-#### Use case 15. Stop sharing your video.
+#### Use case 16. Stop sharing your video.
 
 ```swift
 meetingSession.audioVideo.stopLocalVideo()
 ```
 
-#### Use case 16. View local video.
+#### Use case 17. View local video.
 
 > Note: The local video should be mirrored. Set VideoRenderView.mirror = true
 
@@ -451,7 +520,7 @@ For more advanced video tile management, take a look at  [Video Pagination](http
 >
 > For example, your attendee ID is "my-id". When you call `meetingSession.audioVideo.startContentShare`, the content attendee "my-id#content" will join the session and share your content.
 
-#### Use case 17. Start sharing your screen or content.
+#### Use case 18. Start sharing your screen or content.
 
 ```swift
 class MyContentShareObserver: ContentShareObserver {
@@ -472,12 +541,12 @@ class MyContentShareObserver: ContentShareObserver {
 
 See [Content Share](https://github.com/aws/amazon-chime-sdk-ios/blob/master/guides/content_share.md) for more details.
 
-#### Use case 18. Stop sharing your screen or content.
+#### Use case 19. Stop sharing your screen or content.
 ```swift
 meetingSession.audioVideo.stopContentShare()
 ```
 
-#### Use case 19. View attendee content or screens.
+#### Use case 20. View attendee content or screens.
 
 Chime SDK allows two simultaneous content shares per meeting. Remote content shares will trigger `onVideoTileAdded`, while local share will not. To render the video for preview, add a `VideoSink` to the `VideoSource` in the `ContentShareSource`.
 
@@ -506,7 +575,7 @@ class MyVideoTileObserver: VideoTileObserver {
 
 ### Metrics
 
-#### Use case 20. Add an observer to receive the meeting metrics.
+#### Use case 21. Add an observer to receive the meeting metrics.
 
 See `ObservableMetric` for more available metrics and to monitor audio, video, and content share quality.
 
@@ -522,7 +591,7 @@ class MyMetricsObserver: MetricsObserver {
 
 ### Data Message
 
-#### Use case 21. Add an observer to receive data message.
+#### Use case 22. Add an observer to receive data message.
 
 You can receive real-time messages from multiple topics after starting the meeting session.
 
@@ -539,7 +608,7 @@ class MyDataMessageObserver: DataMessageObserver {
 }
 ```
 
-#### Use case 22. Send data message.
+#### Use case 23. Send data message.
 
 You can send real time message to any topic, to which the observers that have subscribed will be notified.
 
@@ -567,7 +636,7 @@ do {
 
 > Note: Make sure to remove all the observers and release resources you have added to avoid any memory leaks.
 
-#### Use case 23. Stop a session.
+#### Use case 24. Stop a session.
 
 ```swift
 class MyAudioVideoObserver: AudioVideoObserver {
@@ -589,7 +658,7 @@ class MyAudioVideoObserver: AudioVideoObserver {
 
 Amazon Voice Focus reduces the background noise in the meeting for better meeting experience. For more details, see [Amazon Voice Focus](https://github.com/aws/amazon-chime-sdk-ios/blob/master/guides/api_overview.md#11-using-amazon-voice-focus-optional).
 
-#### Use case 24. Enable/Disable Amazon Voice Focus.
+#### Use case 25. Enable/Disable Amazon Voice Focus.
 
 ```swift
 val enabled = audioVideo.realtimeSetVoiceFocusEnabled(true) // enabling Amazon Voice Focus successful

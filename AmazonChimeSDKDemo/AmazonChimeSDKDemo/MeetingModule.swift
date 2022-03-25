@@ -18,6 +18,10 @@ class MeetingModule {
     private let meetingPresenter = MeetingPresenter()
     private var meetings: [UUID: MeetingModel] = [:]
     private let logger = ConsoleLogger(name: "MeetingModule")
+    
+    // These need to be cached in case of primary meeting joins in the future
+    var cachedOverriddenEndpoint = ""
+    var cachedPrimaryExternalMeetingId = ""
 
     static func shared() -> MeetingModule {
         if sharedInstance == nil {
@@ -31,27 +35,41 @@ class MeetingModule {
 
     func prepareMeeting(meetingId: String,
                         selfName: String,
+                        audioVideoConfig: AudioVideoConfiguration,
                         option: CallKitOption,
                         overriddenEndpoint: String,
+                        primaryExternalMeetingId: String,
                         completion: @escaping (Bool) -> Void) {
         requestRecordPermission { success in
             guard success else {
                 completion(false)
                 return
             }
+            self.cachedOverriddenEndpoint = overriddenEndpoint
+            self.cachedPrimaryExternalMeetingId = primaryExternalMeetingId
             JoinRequestService.postJoinRequest(meetingId: meetingId,
                                                name: selfName,
-                                               overriddenEndpoint: overriddenEndpoint) { meetingSessionConfig in
-                guard let meetingSessionConfig = meetingSessionConfig else {
+                                               overriddenEndpoint: overriddenEndpoint,
+                                               primaryExternalMeetingId: primaryExternalMeetingId) { joinMeetingResponse in
+                guard let joinMeetingResponse = joinMeetingResponse else {
                     DispatchQueue.main.async {
                         completion(false)
                     }
                     return
                 }
-                let meetingModel = MeetingModel(meetingSessionConfig: meetingSessionConfig,
+                let meetingResp = JoinRequestService.getCreateMeetingResponse(from: joinMeetingResponse)
+                let attendeeResp = JoinRequestService.getCreateAttendeeResponse(from: joinMeetingResponse)
+                let meetingSessionConfiguration = MeetingSessionConfiguration(createMeetingResponse: meetingResp,
+                                                   createAttendeeResponse: attendeeResp,
+                                                   urlRewriter: self.urlRewriter)
+                let meetingModel = MeetingModel(meetingSessionConfig: meetingSessionConfiguration,
                                                 meetingId: meetingId,
+                                                primaryMeetingId: meetingSessionConfiguration.primaryMeetingId ?? "",
+                                                primaryExternalMeetingId: joinMeetingResponse.joinInfo.primaryExternalMeetingId ?? "",
                                                 selfName: selfName,
-                                                callKitOption: option)
+                                                audioVideoConfig: audioVideoConfig,
+                                                callKitOption: option,
+                                                meetingEndpointUrl: overriddenEndpoint)
                 self.meetings[meetingModel.uuid] = meetingModel
 
                 switch option {
@@ -80,6 +98,12 @@ class MeetingModule {
             }
         }
     }
+    
+    func urlRewriter(url: String) -> String {
+        // changing url
+        // return url.replacingOccurrences(of: "example.com", with: "my.example.com")
+        return url
+    }
 
     func selectDevice(_ meeting: MeetingModel, completion: @escaping (Bool) -> Void) {
         // This is needed to discover bluetooth devices
@@ -100,6 +124,17 @@ class MeetingModule {
         meetingPresenter.dismissActiveMeetingView {
             self.meetingPresenter.showMeetingView(meetingModel: activeMeeting) { _ in }
         }
+    }
+    
+    func liveTranscriptionOptionsSelected(_ meetingModel: MeetingModel) {
+        guard let activeMeeting = activeMeeting else {
+            return
+        }
+        self.meetingPresenter.showLiveTranscriptionView(meetingModel: activeMeeting) { _ in }
+    }
+    
+    func dismissTranscription(_ liveTranscriptionVC: LiveTranscriptionOptionsViewController) {
+        self.meetingPresenter.dismissLiveTranscriptionView(liveTranscriptionVC) { _ in }
     }
 
     func joinMeeting(_ meeting: MeetingModel, completion: @escaping (Bool) -> Void) {

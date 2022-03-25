@@ -41,14 +41,18 @@ import Foundation
         self.eventAnalyticsController = eventAnalyticsController
     }
 
-    public func start(callKitEnabled: Bool = false) throws {
-        try audioVideoController.start(callKitEnabled: callKitEnabled)
+    public func start(audioVideoConfiguration: AudioVideoConfiguration) throws {
+        try audioVideoController.start(audioVideoConfiguration: audioVideoConfiguration)
 
-        trace(name: "start(callKitEnabled: \(callKitEnabled))")
+        trace(name: "start(audioVideoConfiguration: \(audioVideoConfiguration))")
+    }
+
+    public func start(callKitEnabled: Bool = false) throws {
+        try self.start(audioVideoConfiguration: AudioVideoConfiguration(callKitEnabled: callKitEnabled))
     }
 
     public func start() throws {
-        try self.start(callKitEnabled: false)
+        try self.start(audioVideoConfiguration: AudioVideoConfiguration())
     }
 
     public func stop() {
@@ -133,6 +137,28 @@ import Foundation
 
     public func removeMetricsObserver(observer: MetricsObserver) {
         audioVideoController.removeMetricsObserver(observer: observer)
+    }
+
+    public func addRealtimeTranscriptEventObserver(observer: TranscriptEventObserver) {
+        realtimeController.addRealtimeTranscriptEventObserver?(observer: observer)
+    }
+
+    public func removeRealtimeTranscriptEventObserver(observer: TranscriptEventObserver) {
+        realtimeController.removeRealtimeTranscriptEventObserver?(observer: observer)
+    }
+    
+    public func updateVideoSourceSubscriptions(addedOrUpdated: Dictionary<RemoteVideoSource, VideoSubscriptionConfiguration>, removed: Array<RemoteVideoSource>) {
+        audioVideoController.updateVideoSourceSubscriptions(addedOrUpdated: addedOrUpdated, removed: removed)
+    }
+
+    public func promoteToPrimaryMeeting(credentials: MeetingSessionCredentials, observer: PrimaryMeetingPromotionObserver) {
+        audioVideoController.promoteToPrimaryMeeting(credentials: credentials, observer: observer)
+    }
+
+    public func demoteFromPrimaryMeeting() {
+        audioVideoController.demoteFromPrimaryMeeting()
+        // Stop content share as well
+        contentShareController.stopContentShare()
     }
 
     // MARK: DeviceController
