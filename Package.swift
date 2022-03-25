@@ -12,13 +12,13 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "AmazonChimeSDK",
-            url: "https://amazonchime.s3.amazonaws.com/AmazonChimeSDK.xcframework.zip",
-            checksum: "527f2a2e7d30fd3c56b2cbe717752fd238ada66e71a66c4797b3b7fbc41f8737"
+            url: "https://amazon-chime-sdk-ios.s3.amazonaws.com/sdk/0.19.2/AmazonChimeSDK-0.19.2.tar.gz",
+            checksum: "8473ef6c2625f810d30911fc2f314df61fc421ebb75726ff58fd912fc3b7ac19"
         ),
         .binaryTarget(
             name: "AmazonChimeSDKMedia",
-            url: "https://amazonchime.s3.amazonaws.com/AmazonChimeSDKMedia.xcframework.zip",
-            checksum: "4672196db98b1e0efba822f7185273cb706458e379ccbdfa01637626a53599fb"
+            url: "https://amazon-chime-sdk-ios.s3.amazonaws.com/media/0.15.2/AmazonChimeSDKMedia-0.15.2.tar.gz",
+            checksum: "4f3dc87cc0bbdd663e3bef2a81a05ade52e373b2c75c9d798a00b02c2fbe142c"
         )
     ]
 )
